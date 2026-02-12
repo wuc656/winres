@@ -1,8 +1,8 @@
 # winres
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/tc-hib/winres.svg)](https://pkg.go.dev/github.com/tc-hib/winres)
-[![codecov](https://codecov.io/gh/tc-hib/winres/branch/master/graph/badge.svg?token=JURCYAY1N1)](https://codecov.io/gh/tc-hib/winres)
-[![Go Report](https://goreportcard.com/badge/github.com/tc-hib/winres)](https://goreportcard.com/report/github.com/tc-hib/winres)
+[![Go Reference](https://pkg.go.dev/badge/github.com/wuc656/winres.svg)](https://pkg.go.dev/github.com/wuc656/winres)
+[![codecov](https://codecov.io/gh/wuc656/winres/branch/master/graph/badge.svg?token=JURCYAY1N1)](https://codecov.io/gh/wuc656/winres)
+[![Go Report](https://goreportcard.com/badge/github.com/wuc656/winres)](https://goreportcard.com/report/github.com/wuc656/winres)
 
 Package winres provides functions for embedding resources in a Windows executable built with Go.
 
@@ -56,7 +56,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/tc-hib/winres"
+	"github.com/wuc656/winres"
 )
 
 func main() {

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tc-hib/winres/version"
+	"github.com/wuc656/winres/version"
 )
 
 func TestMain(m *testing.M) {
@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 }
 
 func getTestData() {
-	exec.Command("git", "clone", "https://github.com/tc-hib/winres-testdata.git", "testdata").Run()
+	exec.Command("git", "clone", "https://github.com/wuc656/winres-testdata.git", "testdata").Run()
 
 	cmd := exec.Command("git", "fetch", "--all")
 	cmd.Dir = "./testdata"

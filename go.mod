@@ -1,4 +1,4 @@
-module github.com/tc-hib/winres
+module github.com/wuc656/winres
 
 go 1.19
 

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/tc-hib/winres/version"
+	"github.com/wuc656/winres/version"
 )
 
 // Standard type IDs from  https://docs.microsoft.com/en-us/windows/win32/menurc/resource-types

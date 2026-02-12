@@ -38,8 +38,8 @@ Embedding an icon, version information, and a manifest:
 	"log"
 	"os"
 
-	"github.com/tc-hib/winres"
-	"github.com/tc-hib/winres/version"
+	"github.com/wuc656/winres"
+	"github.com/wuc656/winres/version"
  )
 
  func main() {
