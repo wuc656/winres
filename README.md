@@ -87,4 +87,4 @@ Many thanks to [akavel](https://github.com/akavel) for his help.
 
 This project uses these very helpful libs:
 
-* [nfnt/resize](https://github.com/nfnt/resize) - pure Go image resizing
+* [wuc656/resize](https://github.com/wuc656/resize) - pure Go image resizing

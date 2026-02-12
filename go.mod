@@ -1,8 +1,8 @@
 module github.com/wuc656/winres
 
-go 1.19
+go 1.25.0
 
 require (
-	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
-	golang.org/x/image v0.12.0
+	github.com/wuc656/resize v0.0.1
+	golang.org/x/image v0.36.0
 )

@@ -11,7 +11,7 @@ import (
 	"io"
 	"sort"
 
-	"github.com/nfnt/resize"
+	"github.com/wuc656/resize"
 )
 
 // Icon describes a Windows icon.
