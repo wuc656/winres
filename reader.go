@@ -16,7 +16,7 @@ func readFull(r io.Reader, data []byte) error {
 
 // binaryRead is like binary.Read, except it always returns io.ErrUnexpectedEOF instead of io.EOF.
 // Furthermore, it always uses binary.LittleEndian.
-func binaryRead(r io.Reader, v interface{}) error {
+func binaryRead(r io.Reader, v any) error {
 	err := binary.Read(r, binary.LittleEndian, v)
 	if err == io.EOF {
 		return io.ErrUnexpectedEOF

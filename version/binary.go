@@ -192,7 +192,7 @@ func writeAligned(buffer *bytes.Buffer, data []byte) {
 	buffer.Write(data)
 }
 
-func writeStructAligned(buffer *bytes.Buffer, data interface{}) {
+func writeStructAligned(buffer *bytes.Buffer, data any) {
 	var pad [4]byte
 	s := buffer.Len()
 	p := align(s) - s
@@ -232,7 +232,7 @@ func fromBytes(data []byte) (*Info, error) {
 }
 
 // Returns the number of bytes read
-func (vi *Info) readNode(parent interface{}, data []byte) (int, error) {
+func (vi *Info) readNode(parent any, data []byte) (int, error) {
 	n, pos, err := readNodeHeader(data)
 	if err != nil {
 		return 0, err
@@ -304,7 +304,7 @@ func (vi *Info) readNode(parent interface{}, data []byte) (int, error) {
 	return len(data), nil
 }
 
-func (vi *Info) readChildren(parent interface{}, data []byte, pos *int) error {
+func (vi *Info) readChildren(parent any, data []byte, pos *int) error {
 	for align(*pos) < len(data) {
 		*pos = align(*pos)
 		offset, err := vi.readNode(parent, data[*pos:])
@@ -407,7 +407,7 @@ func readNodeHeader(data []byte) (nodeHeader, int, error) {
 
 // binaryRead is like binary.Read, except it always returns io.ErrUnexpectedEOF instead of io.EOF.
 // Furthermore, it always uses binary.LittleEndian.
-func binaryRead(r io.Reader, v interface{}) error {
+func binaryRead(r io.Reader, v any) error {
 	err := binary.Read(r, binary.LittleEndian, v)
 	if err == io.EOF {
 		return io.ErrUnexpectedEOF

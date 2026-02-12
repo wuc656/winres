@@ -518,10 +518,7 @@ func (pew *peWriter) writeEXE(w io.Writer) error {
 	}
 
 	// Sections before .rsrc
-	end := int64(pew.src.dataEnd)
-	if int64(pew.rsrcHdr.PointerToRawData) < end {
-		end = int64(pew.rsrcHdr.PointerToRawData)
-	}
+	end := min(int64(pew.rsrcHdr.PointerToRawData), int64(pew.src.dataEnd))
 	_, err = io.CopyN(w, pew.src.r, end-int64(pew.src.dataOffset))
 	if err != nil {
 		return err
@@ -572,10 +569,7 @@ func writeBlank(w io.Writer, length int64) error {
 	const bufLen = 0x100
 	var b [bufLen]byte
 	for length > 0 {
-		l := length
-		if l > bufLen {
-			l = bufLen
-		}
+		l := min(length, bufLen)
 		_, err := w.Write(b[:l])
 		if err != nil {
 			return err
