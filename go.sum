@@ -1,4 +1,4 @@
-github.com/wuc656/resize v0.0.1 h1:rBy+/iyDVEo7/sTx24TWw9QXug+9tNdErxLtAnEk+4Q=
-github.com/wuc656/resize v0.0.1/go.mod h1:fbyehsaQ+aTa8c21UmF3RwgYJWBjD0Cnkz+Q1APsnGk=
+github.com/wuc656/resize v0.0.2 h1:h/H+uY2QLX6WJU+/YTgyvsz75SpOOSgNslZcpKjiYlg=
+github.com/wuc656/resize v0.0.2/go.mod h1:fbyehsaQ+aTa8c21UmF3RwgYJWBjD0Cnkz+Q1APsnGk=
 golang.org/x/image v0.36.0 h1:Iknbfm1afbgtwPTmHnS2gTM/6PPZfH+z2EFuOkSbqwc=
 golang.org/x/image v0.36.0/go.mod h1:YsWD2TyyGKiIX1kZlu9QfKIsQ4nAAK9bdgdrIsE7xy4=
