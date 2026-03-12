@@ -331,10 +331,7 @@ func imageInSquareNRGBA(img image.Image, center bool) image.Image {
 		return img
 	}
 
-	length := w
-	if length < h {
-		length = h
-	}
+	length := max(w, h)
 
 	offset := image.Point{
 		X: -img.Bounds().Min.X,

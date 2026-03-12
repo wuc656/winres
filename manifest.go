@@ -350,7 +350,7 @@ func AppManifestFromXML(data []byte) (AppManifest, error) {
 }
 
 func readDPIAwareness(dpiAware string, dpiAwareness string) DPIAwareness {
-	for _, s := range strings.Split(dpiAwareness, ",") {
+	for s := range strings.SplitSeq(dpiAwareness, ",") {
 		switch manifestString(s) {
 		case "permonitorv2":
 			return DPIPerMonitorV2

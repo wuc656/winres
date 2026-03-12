@@ -23,7 +23,7 @@ func (r *eofReader) Read(data []byte) (int, error) {
 func Test_binaryRead(t *testing.T) {
 	r := eofReader{3 * 4 * 5}
 	s := make([]uint32, 5)
-	for j := 0; j < 4; j++ {
+	for j := range 4 {
 		err := binaryRead(&r, &s)
 		if (err == nil) != (j < 3) {
 			t.FailNow()

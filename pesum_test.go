@@ -24,7 +24,7 @@ func Test_peCheckSum_Write(t *testing.T) {
 		t.FailNow()
 	}
 	b := make([]byte, 0x12345)
-	for i := 0; i < 0x100; i++ {
+	for range 0x100 {
 		w.Write(b)
 	}
 	if w.Sum() != 0x123451B {
