@@ -4,5 +4,5 @@ go 1.25.0
 
 require (
 	github.com/wuc656/resize v0.0.3
-	golang.org/x/image v0.37.0
+	golang.org/x/image v0.38.0
 )
