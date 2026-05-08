@@ -317,10 +317,10 @@ func loadFromEXE(exe io.ReadSeeker, typeID Identifier) (*ResourceSet, error) {
 }
 
 func (rs *ResourceSet) bytes() ([]byte, []int) {
-	buf := bytes.Buffer{}
+	buf := bytes.NewBuffer(make([]byte, 0, rs.fullSize()))
 	// ResourceSet.write may only fail on io.Write() calls.
 	// bytes.Buffer.Write never returns an error.
-	reloc, _ := rs.write(&buf)
+	reloc, _ := rs.write(buf)
 	return buf.Bytes(), reloc
 }
 

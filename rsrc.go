@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"slices"
 	"sort"
 	"unicode/utf16"
 )
@@ -50,7 +51,7 @@ func (rs *ResourceSet) write(w io.Writer) ([]int, error) {
 	if err := rs.writeData(w, s); err != nil {
 		return nil, err
 	}
-	return append([]int{}, s.relocAddr...), nil
+	return slices.Clone(s.relocAddr), nil
 }
 
 // order orders identifiers in the whole resource set.
@@ -62,9 +63,7 @@ func (rs *ResourceSet) order(s *state) {
 	}
 
 	// Names in case sensitive ascending order, then IDs in ascending order
-	sort.Slice(s.orderedKeys, func(i, j int) bool {
-		return s.orderedKeys[i].lessThan(s.orderedKeys[j])
-	})
+	slices.SortFunc(s.orderedKeys, compareIdentifier)
 
 	// Count Names by searching the first ID
 	s.namesCount = sort.Search(len(s.orderedKeys), func(i int) bool {
@@ -73,14 +72,23 @@ func (rs *ResourceSet) order(s *state) {
 	})
 }
 
+func compareIdentifier(a, b Identifier) int {
+	if a.lessThan(b) {
+		return -1
+	}
+	if b.lessThan(a) {
+		return 1
+	}
+	return 0
+}
+
 // prepare calculates the names index offset and content, as this has to be known before writing the resource directory.
 // It also freezes the order of identifiers in the directory, so that subsequent write functions can rely on it.
 func (rs *ResourceSet) prepare() *state {
 	var (
-		nameSet     = make(map[Name]struct{})
-		typeNameSet = make(map[Name]struct{})
-		s           = &state{
-			nameOffset: make(map[Name]int),
+		nameSet = make(map[Name]struct{})
+		s       = &state{
+			relocAddr: make([]int, 0, rs.numDataEntries()),
 		}
 	)
 
@@ -88,7 +96,6 @@ func (rs *ResourceSet) prepare() *state {
 
 	for ident, te := range rs.types {
 		if name, ok := ident.(Name); ok {
-			typeNameSet[name] = struct{}{}
 			nameSet[name] = struct{}{}
 		}
 		for _, name := range te.orderedKeys[:te.namesCount] {
@@ -100,9 +107,10 @@ func (rs *ResourceSet) prepare() *state {
 	for n := range nameSet {
 		names = append(names, string(n))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	offset := rs.dirSize()
+	s.nameOffset = make(map[Name]int, len(names))
 	for _, n := range names {
 		s.nameOffset[Name(n)] = offset
 		u := utf16.Encode([]rune(n))
@@ -257,9 +265,7 @@ func (te *typeEntry) order() {
 	}
 
 	// Names in case sensitive ascending order, then IDs in ascending order
-	sort.Slice(te.orderedKeys, func(i, j int) bool {
-		return te.orderedKeys[i].lessThan(te.orderedKeys[j])
-	})
+	slices.SortFunc(te.orderedKeys, compareIdentifier)
 
 	// Count Names by searching the first ID
 	te.namesCount = sort.Search(len(te.orderedKeys), func(i int) bool {
@@ -310,9 +316,7 @@ func (re *resourceEntry) order() {
 	}
 
 	// LCIDs in ascending order
-	sort.Slice(re.orderedKeys, func(i, j int) bool {
-		return re.orderedKeys[i].lessThan(re.orderedKeys[j])
-	})
+	slices.Sort(re.orderedKeys)
 }
 
 // write writes the entry's directory table

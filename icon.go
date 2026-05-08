@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"io"
-	"sort"
+	"slices"
 
 	"github.com/wuc656/resize"
 )
@@ -28,7 +29,7 @@ var DefaultIconSizes = []int{256, 64, 48, 32, 16}
 //
 // This converts every image to 32bpp PNG.
 func NewIconFromImages(images []image.Image) (*Icon, error) {
-	icon := Icon{}
+	icon := Icon{images: make([]iconImage, 0, len(images))}
 
 	for _, img := range images {
 		if err := icon.addImage(img); err != nil {
@@ -50,7 +51,7 @@ func NewIconFromResizedImage(img image.Image, sizes []int) (*Icon, error) {
 		return nil, errors.New(errTooManyIconSizes)
 	}
 
-	icon := Icon{}
+	icon := Icon{images: make([]iconImage, 0, len(sizes))}
 	for _, s := range sizes {
 		if err := icon.addImage(resizeImage(img, s)); err != nil {
 			return nil, err
@@ -76,7 +77,7 @@ func LoadICO(ico io.ReadSeeker) (*Icon, error) {
 		return nil, err
 	}
 
-	icon := &Icon{}
+	icon := &Icon{images: make([]iconImage, 0, len(entries))}
 	for _, e := range entries {
 		// Arbitrary limit: no more than 10MB per image, so we can blindly allocate bytes and try to read them.
 		if e.BytesInRes > 0xA00000 {
@@ -108,11 +109,7 @@ func (icon *Icon) SaveICO(ico io.Writer) error {
 		return err
 	}
 
-	var (
-		pos    = sizeOfIconDirHeader
-		hdrLen = sizeOfIconDirHeader + len(icon.images)*sizeOfIconFileDirEntry
-		offset = hdrLen
-	)
+	offset := sizeOfIconDirHeader + len(icon.images)*sizeOfIconFileDirEntry
 
 	icon.order()
 	for i := range icon.images {
@@ -124,7 +121,6 @@ func (icon *Icon) SaveICO(ico io.Writer) error {
 			return err
 		}
 		offset += len(icon.images[i].image)
-		pos += sizeOfIconFileDirEntry
 	}
 
 	for i := range icon.images {
@@ -143,7 +139,6 @@ func (icon *Icon) SaveICO(ico io.Writer) error {
 // That means:
 //  1. First name in case-sensitive ascending order, or else...
 //  2. First ID in ascending order
-//
 func (rs *ResourceSet) SetIcon(resID Identifier, icon *Icon) error {
 	return rs.SetIconTranslation(resID, LCIDNeutral, icon)
 }
@@ -154,9 +149,8 @@ func (rs *ResourceSet) SetIcon(resID Identifier, icon *Icon) error {
 // That means:
 //  1. First name in case-sensitive ascending order, or else...
 //  2. First ID in ascending order
-//
 func (rs *ResourceSet) SetIconTranslation(resID Identifier, langID uint16, icon *Icon) error {
-	b := &bytes.Buffer{}
+	b := bytes.NewBuffer(make([]byte, 0, sizeOfIconDirHeader+len(icon.images)*sizeOfIconFileDirEntry))
 	binary.Write(b, binary.LittleEndian, iconDirHeader{
 		Type:  1,
 		Count: uint16(len(icon.images)),
@@ -198,7 +192,7 @@ func (rs *ResourceSet) GetIconTranslation(resID Identifier, langID uint16) (*Ico
 		return nil, errors.New(errInvalidGroup)
 	}
 
-	icon := &Icon{}
+	icon := &Icon{images: make([]iconImage, 0, int(hdr.Count))}
 	for i := 0; i < int(hdr.Count); i++ {
 		entry := iconResDirEntry{}
 		err := binaryRead(in, &entry)
@@ -303,10 +297,17 @@ func (icon *Icon) addImage(img image.Image) error {
 
 func (icon *Icon) order() {
 	// Sort images by descending size and quality
-	sort.SliceStable(icon.images, func(i, j int) bool {
-		img1, img2 := &icon.images[i].info, &icon.images[j].info
-		return img1.BitCount > img2.BitCount ||
-			img1.BitCount == img2.BitCount && int(img1.Width-1)+1 > int(img2.Width-1)+1
+	slices.SortStableFunc(icon.images, func(a, b iconImage) int {
+		img1, img2 := &a.info, &b.info
+		if img1.BitCount > img2.BitCount ||
+			img1.BitCount == img2.BitCount && int(img1.Width-1)+1 > int(img2.Width-1)+1 {
+			return -1
+		}
+		if img2.BitCount > img1.BitCount ||
+			img1.BitCount == img2.BitCount && int(img2.Width-1)+1 > int(img1.Width-1)+1 {
+			return 1
+		}
+		return 0
 	})
 }
 
@@ -343,11 +344,7 @@ func imageInSquareNRGBA(img image.Image, center bool) image.Image {
 	}
 
 	square := image.NewNRGBA(image.Rectangle{Max: image.Point{X: length, Y: length}})
-	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y++ {
-		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x++ {
-			square.Set(x+offset.X, y+offset.Y, img.At(x, y))
-		}
-	}
+	draw.Draw(square, img.Bounds().Add(offset), img, img.Bounds().Min, draw.Src)
 
 	return square
 }

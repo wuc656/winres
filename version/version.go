@@ -5,9 +5,9 @@
 package version
 
 import (
-	"maps"
 	"errors"
 	"io"
+	"maps"
 	"strings"
 	"time"
 )
@@ -83,8 +83,7 @@ func (vi *Info) Table() LangTable {
 	for lang, langST := range vi.lt {
 		var st *StringTable
 		if langST != nil {
-			stm := make(StringTable, len(*langST))
-			maps.Copy(stm, *langST)
+			stm := maps.Clone(*langST)
 			st = &stm
 		}
 		lt[lang] = st

@@ -9,7 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"unicode/utf16"
 )
 
@@ -146,7 +147,7 @@ func stringBytes(key string, value string) []byte {
 
 func varFileInfoBytes(lt *LangTable) []byte {
 	buf := &bytes.Buffer{}
-	var langs []uint32
+	langs := make([]uint32, 0, len(*lt))
 	for _, langID := range lt.sortedKeys() {
 		langs = append(langs, codePageUTF16LE<<16|uint32(langID))
 	}
@@ -201,25 +202,11 @@ func writeStructAligned(buffer *bytes.Buffer, data any) {
 }
 
 func (st *StringTable) sortedKeys() []string {
-	keys := make([]string, 0, len(*st))
-	for k := range *st {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return slices.Sorted(maps.Keys(*st))
 }
 
 func (lt *LangTable) sortedKeys() []uint16 {
-	keys := make([]int, 0, len(*lt))
-	for k := range *lt {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-	keysU16 := make([]uint16, len(*lt))
-	for i, v := range keys {
-		keysU16[i] = uint16(v)
-	}
-	return keysU16
+	return slices.Sorted(maps.Keys(*lt))
 }
 
 func fromBytes(data []byte) (*Info, error) {

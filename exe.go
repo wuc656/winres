@@ -374,7 +374,8 @@ func (pew *peWriter) requiresNewSection() bool {
 	if endOfRSRC >= pew.src.virtEnd {
 		return false
 	}
-	if pew.relocHdr.VirtualAddress == endOfRSRC &&
+	if pew.relocHdr != nil &&
+		pew.relocHdr.VirtualAddress == endOfRSRC &&
 		pew.roundVirt(pew.relocHdr.VirtualAddress+pew.relocHdr.VirtualSize) >= pew.src.virtEnd {
 		return false
 	}
@@ -465,15 +466,9 @@ func (pew *peWriter) roundVirt(p uint32) uint32 {
 
 func (pew *peWriter) applyReloc(reloc []int) {
 	for _, o := range reloc {
-		addr := uint32(pew.rsrcData[o+3])<<24 |
-			uint32(pew.rsrcData[o+2])<<16 |
-			uint32(pew.rsrcData[o+1])<<8 |
-			uint32(pew.rsrcData[o])
+		addr := binary.LittleEndian.Uint32(pew.rsrcData[o:])
 		addr += pew.rsrcHdr.VirtualAddress
-		pew.rsrcData[o+3] = uint8(addr >> 24)
-		pew.rsrcData[o+2] = uint8(addr >> 16)
-		pew.rsrcData[o+1] = uint8(addr >> 8)
-		pew.rsrcData[o] = uint8(addr)
+		binary.LittleEndian.PutUint32(pew.rsrcData[o:], addr)
 	}
 }
 
@@ -591,7 +586,7 @@ func readPEOffset(r io.Reader) (int64, error) {
 		return 0, errors.New(errNotPEImage)
 	}
 
-	return int64(stubHead[0x3F])<<24 | int64(stubHead[0x3E])<<16 | int64(stubHead[0x3D])<<8 | int64(stubHead[0x3C]), nil
+	return int64(binary.LittleEndian.Uint32(stubHead[0x3C:])), nil
 }
 
 func readPEHeaders(r io.ReadSeeker) (*peHeaders, error) {
@@ -625,6 +620,9 @@ func readPEHeaders(r io.ReadSeeker) (*peHeaders, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(optHdr) < 2 {
+		return nil, io.ErrUnexpectedEOF
+	}
 	if optHdr[0] != 11 {
 		return nil, errors.New(errUnknownPE)
 	}
@@ -650,7 +648,9 @@ func readPEHeaders(r io.ReadSeeker) (*peHeaders, error) {
 	}
 
 	h.dirs = make([]pe.DataDirectory, numDirs)
-	binaryRead(optRead, &h.dirs)
+	if err := binaryRead(optRead, &h.dirs); err != nil {
+		return nil, err
+	}
 
 	h.sections = make([]pe.SectionHeader32, h.file.NumberOfSections, h.file.NumberOfSections+1)
 	err = binaryRead(r, &h.sections)

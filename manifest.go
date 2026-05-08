@@ -223,7 +223,7 @@ func makeManifest(manifest AppManifest) []byte {
 		vars.DPIAwareness = "unaware"
 	}
 
-	buf := &bytes.Buffer{}
+	buf := bytes.NewBuffer(make([]byte, 0, len(manifestTemplate)))
 	tmpl := template.Must(template.New("manifest").Parse(manifestTemplate))
 	err := tmpl.Execute(buf, vars)
 	if err != nil {
@@ -297,13 +297,14 @@ func AppManifestFromXML(data []byte) (AppManifest, error) {
 	var m AppManifest
 
 	m.Identity.Name = x.Identity.Name
-	v := strings.Split(x.Identity.Version, ".")
-	if len(v) > 4 {
-		v = v[:4]
-	}
-	for i := range v {
-		n, _ := strconv.ParseUint(v[i], 10, 16)
+	var i int
+	for part := range strings.SplitSeq(x.Identity.Version, ".") {
+		if i >= len(m.Identity.Version) {
+			break
+		}
+		n, _ := strconv.ParseUint(part, 10, 16)
 		m.Identity.Version[i] = uint16(n)
+		i++
 	}
 	m.Description = x.Description
 
@@ -518,16 +519,17 @@ func (ai *AssemblyIdentity) UnmarshalJSON(b []byte) error {
 	if j.Version == "" {
 		return nil
 	}
-	v := strings.Split(j.Version, ".")
-	if len(v) > 4 {
-		return errors.New(errInvalidVersion)
-	}
-	for i := range v {
-		n, err := strconv.ParseUint(v[i], 10, 16)
+	var i int
+	for part := range strings.SplitSeq(j.Version, ".") {
+		if i >= len(ai.Version) {
+			return errors.New(errInvalidVersion)
+		}
+		n, err := strconv.ParseUint(part, 10, 16)
 		if err != nil {
 			return errors.New(errInvalidVersion)
 		}
 		ai.Version[i] = uint16(n)
+		i++
 	}
 	return nil
 }

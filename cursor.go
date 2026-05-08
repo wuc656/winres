@@ -6,7 +6,7 @@ import (
 	"errors"
 	"image"
 	"io"
-	"sort"
+	"slices"
 
 	"golang.org/x/image/bmp"
 )
@@ -35,7 +35,7 @@ type HotSpot struct {
 
 // NewCursorFromImages makes a cursor from a list of images and hot spots.
 func NewCursorFromImages(images []CursorImage) (*Cursor, error) {
-	cursor := &Cursor{}
+	cursor := &Cursor{images: make([]cursorImage, 0, len(images))}
 
 	for _, img := range images {
 		if err := cursor.addImage(img.Image, img.HotSpot); err != nil {
@@ -62,7 +62,7 @@ func LoadCUR(cur io.ReadSeeker) (*Cursor, error) {
 		return nil, err
 	}
 
-	cursor := &Cursor{}
+	cursor := &Cursor{images: make([]cursorImage, 0, len(entries))}
 	for _, e := range entries {
 		// Arbitrary limit: no more than 10MB per image, so we can blindly allocate bytes and try to read them.
 		if e.BytesInRes > 0xA00000 {
@@ -110,10 +110,7 @@ func (cursor *Cursor) SaveCUR(ico io.Writer) error {
 		return err
 	}
 
-	var (
-		pos    = sizeOfCursorDirHeader
-		offset = sizeOfCursorDirHeader + len(cursor.images)*sizeOfCursorFileDirEntry
-	)
+	offset := sizeOfCursorDirHeader + len(cursor.images)*sizeOfCursorFileDirEntry
 
 	cursor.order()
 	for i := range cursor.images {
@@ -130,7 +127,6 @@ func (cursor *Cursor) SaveCUR(ico io.Writer) error {
 		}
 
 		offset += len(cursor.images[i].image)
-		pos += sizeOfCursorFileDirEntry
 	}
 
 	for i := range cursor.images {
@@ -150,7 +146,7 @@ func (rs *ResourceSet) SetCursor(resID Identifier, cursor *Cursor) error {
 
 // SetCursorTranslation adds the cursor to a specific language in the resource set.
 func (rs *ResourceSet) SetCursorTranslation(resID Identifier, langID uint16, cursor *Cursor) error {
-	b := &bytes.Buffer{}
+	b := bytes.NewBuffer(make([]byte, 0, sizeOfCursorDirHeader+len(cursor.images)*sizeOfCursorFileDirEntry))
 	binary.Write(b, binary.LittleEndian, cursorDirHeader{
 		Type:  2,
 		Count: uint16(len(cursor.images)),
@@ -191,7 +187,7 @@ func (rs *ResourceSet) GetCursorTranslation(resID Identifier, langID uint16) (*C
 		return nil, errors.New(errInvalidGroup)
 	}
 
-	g := &Cursor{}
+	g := &Cursor{images: make([]cursorImage, 0, int(dir.Count))}
 	for i := 0; i < int(dir.Count); i++ {
 		entry := cursorResDirEntry{}
 		err := binaryRead(in, &entry)
@@ -255,10 +251,10 @@ type cursorImage struct {
 
 func (ci *cursorImage) resData() []byte {
 	// As a resource, image data includes the hot spot
-	buf := bytes.NewBuffer(make([]byte, 0, len(ci.image)+4))
-	binary.Write(buf, binary.LittleEndian, ci.hotSpot)
-	buf.Write(ci.image)
-	return buf.Bytes()
+	data := make([]byte, 4, len(ci.image)+4)
+	binary.LittleEndian.PutUint16(data, ci.hotSpot.X)
+	binary.LittleEndian.PutUint16(data[2:], ci.hotSpot.Y)
+	return append(data, ci.image...)
 }
 
 // This makes a testing error reporting possible
@@ -289,8 +285,7 @@ func (cursor *Cursor) addImage(img image.Image, hotSpot HotSpot) error {
 	width, height := curImg.Bounds().Size().X, curImg.Bounds().Size().Y
 	// Height must be doubled in the DIB header, as if there was an AND mask for transparency.
 	// In a 32 bits DIB, the mask can be the alpha channel, therefore there is no AND mask.
-	dib[8] = byte(height << 1)
-	dib[9] = byte(height >> 7)
+	binary.LittleEndian.PutUint32(dib[8:], uint32(height*2))
 
 	cursor.images = append(cursor.images, cursorImage{
 		info: cursorInfo{
@@ -308,9 +303,15 @@ func (cursor *Cursor) addImage(img image.Image, hotSpot HotSpot) error {
 }
 
 func (cursor *Cursor) order() {
-	sort.SliceStable(cursor.images, func(i, j int) bool {
-		img1, img2 := &cursor.images[i].info, &cursor.images[j].info
-		return img1.BitCount > img2.BitCount || img1.BitCount == img2.BitCount && img1.Width > img2.Width
+	slices.SortStableFunc(cursor.images, func(a, b cursorImage) int {
+		img1, img2 := &a.info, &b.info
+		if img1.BitCount > img2.BitCount || img1.BitCount == img2.BitCount && img1.Width > img2.Width {
+			return -1
+		}
+		if img2.BitCount > img1.BitCount || img1.BitCount == img2.BitCount && img2.Width > img1.Width {
+			return 1
+		}
+		return 0
 	})
 }
 
@@ -321,16 +322,15 @@ func readDIBBitCount(data []byte) (uint16, uint16, error) {
 		return 1, 32, nil
 	}
 
-	hdrSize := uint32(data[3])<<24 | uint32(data[2])<<16 | uint32(data[1])<<8 | uint32(data[0])
+	if len(data) < 16 {
+		return 0, 0, io.ErrUnexpectedEOF
+	}
+
+	hdrSize := binary.LittleEndian.Uint32(data)
 
 	if hdrSize != 40 && hdrSize != 108 && hdrSize != 124 {
 		return 0, 0, errors.New(errUnknownImageFormat)
 	}
 
-	var (
-		planes   = uint16(data[13])<<8 | uint16(data[12])
-		bitCount = uint16(data[15])<<8 | uint16(data[14])
-	)
-
-	return planes, bitCount, nil
+	return binary.LittleEndian.Uint16(data[12:]), binary.LittleEndian.Uint16(data[14:]), nil
 }
