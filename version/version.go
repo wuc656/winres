@@ -6,7 +6,6 @@ package version
 
 import (
 	"errors"
-	"io"
 	"maps"
 	"strings"
 	"time"
@@ -52,10 +51,6 @@ type Info struct {
 	Type           fileType
 	Timestamp      time.Time
 	lt             LangTable
-
-	// temporary state
-	pos int
-	w   io.Writer
 }
 
 type versionFlags struct {
@@ -207,6 +202,9 @@ func MergeTranslations(translations map[uint16]*Info) *Info {
 	vi.FileVersion = main.FileVersion
 
 	for langID, trans := range translations {
+		if trans == nil {
+			continue
+		}
 		st := trans.lt[langID]
 		if st == nil || len(*st) == 0 {
 			st = trans.lt[LangNeutral]
@@ -308,14 +306,19 @@ func (vi *Info) splitLangs() map[uint16]*Info {
 		}
 	}
 	for _, langID := range vi.lt.sortedKeys() {
-		for k, v := range *vi.lt[langID] {
-			if _, ok := defaults[k]; !ok {
-				defaults[k] = v
+		if st := vi.lt[langID]; st != nil {
+			for k, v := range *st {
+				if _, ok := defaults[k]; !ok {
+					defaults[k] = v
+				}
 			}
 		}
 	}
 
 	for langID, st := range vi.lt {
+		if st == nil {
+			continue
+		}
 		trans := &Info{
 			FileVersion:    vi.FileVersion,
 			ProductVersion: vi.ProductVersion,
@@ -337,6 +340,10 @@ func (vi *Info) splitLangs() map[uint16]*Info {
 
 // GetMainTranslation returns the main translation.
 func (lt LangTable) GetMainTranslation() StringTable {
+	if len(lt) == 0 {
+		return nil
+	}
+
 	main := lt[LangNeutral]
 	if main != nil {
 		return *main
@@ -347,11 +354,18 @@ func (lt LangTable) GetMainTranslation() StringTable {
 		return *main
 	}
 
-	var lang uint16 = 0xFFFF
-	for k := range lt {
-		if k < lang {
+	var (
+		lang  uint16 = 0xFFFF
+		found bool
+	)
+	for k, v := range lt {
+		if v != nil && (k < lang || !found) {
 			lang = k
+			found = true
 		}
+	}
+	if !found || lt[lang] == nil {
+		return nil
 	}
 	return *lt[lang]
 }

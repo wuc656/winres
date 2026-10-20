@@ -474,6 +474,16 @@ func TestResourceSet_GetCursorTranslation_Err(t *testing.T) {
 	if err == nil || cursor != nil || err.Error() != errCursorMissing {
 		t.Fail()
 	}
+
+	// Truncated RT_CURSOR (< 4 bytes)
+	err = rs.Set(RT_CURSOR, ID(1), 0, []byte{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cursor, err = rs.GetCursorTranslation(Name("LOCALCUR"), 0x403)
+	if err == nil || cursor != nil || err.Error() != errInvalidGroup {
+		t.Fail()
+	}
 }
 
 func checkCursorResource(t *testing.T, rs *ResourceSet, ident Identifier, langID uint16, source *Cursor) {

@@ -21,6 +21,9 @@ func TestMain(m *testing.M) {
 }
 
 func getTestData() {
+	if fi, err := os.Stat("testdata"); err == nil && fi.IsDir() {
+		return
+	}
 	exec.Command("git", "clone", "https://github.com/wuc656/winres-testdata.git", "testdata").Run()
 
 	cmd := exec.Command("git", "fetch", "--all")
@@ -751,6 +754,19 @@ func TestResourceSet_LoadFromEXE_Err(t *testing.T) {
 	rs, err = LoadFromEXE(bytes.NewReader(b))
 	if err == nil || rs != nil || err.Error() != errUnknownPE {
 		t.Error(err)
+	}
+
+	b = loadBinary(t, "vs.exe")
+	peOff := int(b[0x3C])
+	optOff := peOff + 4 + 20
+	fileAlignOff := optOff + 36 // FileAlignment in PE64 (32 in PE32, 36 in PE64)
+	b[fileAlignOff] = 0
+	b[fileAlignOff+1] = 0
+	b[fileAlignOff+2] = 0
+	b[fileAlignOff+3] = 0
+	rs, err = LoadFromEXE(bytes.NewReader(b))
+	if err == nil || rs != nil || err.Error() != errUnknownPE {
+		t.Errorf("expected errUnknownPE, got %v", err)
 	}
 
 	b = loadBinary(t, "vs32.exe")

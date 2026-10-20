@@ -658,6 +658,10 @@ func readPEHeaders(r io.ReadSeeker) (*peHeaders, error) {
 		return nil, err
 	}
 
+	if h.opt.getFileAlignment() == 0 || h.opt.getSectionAlignment() == 0 {
+		return nil, errors.New(errUnknownPE)
+	}
+
 	h.hasChecksum = h.opt.getCheckSum() != 0
 	h.length, err = r.Seek(0, io.SeekCurrent)
 	if err != nil {

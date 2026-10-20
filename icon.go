@@ -150,6 +150,10 @@ func (rs *ResourceSet) SetIcon(resID Identifier, icon *Icon) error {
 //  1. First name in case-sensitive ascending order, or else...
 //  2. First ID in ascending order
 func (rs *ResourceSet) SetIconTranslation(resID Identifier, langID uint16, icon *Icon) error {
+	if int(rs.lastIconID)+len(icon.images) > 0xFFFF {
+		return errors.New(errZeroID)
+	}
+
 	b := bytes.NewBuffer(make([]byte, 0, sizeOfIconDirHeader+len(icon.images)*sizeOfIconFileDirEntry))
 	binary.Write(b, binary.LittleEndian, iconDirHeader{
 		Type:  1,

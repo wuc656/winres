@@ -12,7 +12,7 @@ Each resource must be named, so it can later be accessed with FindResource, Load
 To name a resource, you may use an int that you cast to winres.ID, or a string that you cast to winres.Name.
 
  rs := winres.ResourceSet{}
- rs.Set(winres.RT_RCDATA, winres.Name("MYDATA"), 0, 0, []byte("some data"))
+ rs.Set(winres.RT_RCDATA, winres.Name("MYDATA"), 0, []byte("some data"))
  rs.WriteObject(someFile, winres.ArchAMD64)
  rs.WriteObject(anotherFile, winres.ArchI386)
 
@@ -75,8 +75,8 @@ Embedding an icon, version information, and a manifest:
 
 	// Add a manifest
 	rs.SetManifest(winres.AppManifest{
-		ExecutionLevel:      RequireAdministrator,
-		DPIAwareness:        DPIPerMonitorV2,
+		ExecutionLevel:      winres.RequireAdministrator,
+		DPIAwareness:        winres.DPIPerMonitorV2,
 		UseCommonControlsV6: true,
 	})
 

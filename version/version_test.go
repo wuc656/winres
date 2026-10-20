@@ -481,6 +481,16 @@ func TestInfo_SplitTranslations(t *testing.T) {
 		t.Fail()
 	}
 
+	emptyInfo := &Info{}
+	if len(emptyInfo.SplitTranslations()) != 0 {
+		t.Fail()
+	}
+
+	nilLtInfo := &Info{lt: LangTable{0x409: nil}}
+	if len(nilLtInfo.SplitTranslations()) != 0 {
+		t.Fail()
+	}
+
 	vi = &Info{
 		FileVersion:    [4]uint16{1, 2, 3, 4},
 		ProductVersion: [4]uint16{1, 2, 3, 4},
@@ -656,4 +666,21 @@ func loadGolden(t *testing.T) []byte {
 
 func golden(t *testing.T) string {
 	return filepath.Join("testdata", t.Name()+".golden")
+}
+
+func TestLangTable_GetMainTranslation_Empty(t *testing.T) {
+	var lt LangTable
+	if lt.GetMainTranslation() != nil {
+		t.Fail()
+	}
+
+	lt = LangTable{}
+	if lt.GetMainTranslation() != nil {
+		t.Fail()
+	}
+
+	lt = LangTable{0x409: nil}
+	if lt.GetMainTranslation() != nil {
+		t.Fail()
+	}
 }

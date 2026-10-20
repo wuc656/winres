@@ -162,6 +162,8 @@ var manifestTemplate = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </assembly>
 `
 
+var manifestTmpl = template.Must(template.New("manifest").Parse(manifestTemplate))
+
 func makeManifest(manifest AppManifest) []byte {
 	vars := struct {
 		AppManifest
@@ -224,8 +226,7 @@ func makeManifest(manifest AppManifest) []byte {
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0, len(manifestTemplate)))
-	tmpl := template.Must(template.New("manifest").Parse(manifestTemplate))
-	err := tmpl.Execute(buf, vars)
+	err := manifestTmpl.Execute(buf, vars)
 	if err != nil {
 		panic(err)
 	}

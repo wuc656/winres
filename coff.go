@@ -28,10 +28,16 @@ func writeObject(w io.Writer, r *ResourceSet, arch Arch) error {
 		Characteristics:      _IMAGE_SCN_MEM_READ | _IMAGE_SCN_CNT_INITIALIZED_DATA,
 	}
 
+	numRelocs := r.numDataEntries()
+	if numRelocs > 0xFFFF {
+		return errors.New("too many relocations")
+	}
+
+	s := r.prepare()
 	section.PointerToRawData = uint32(binary.Size(file) + binary.Size(section))
-	section.SizeOfRawData = uint32(r.fullSize())
+	section.SizeOfRawData = uint32(r.fullSizeWithState(s))
 	section.PointerToRelocations = section.PointerToRawData + section.SizeOfRawData
-	section.NumberOfRelocations = uint16(r.numDataEntries())
+	section.NumberOfRelocations = uint16(numRelocs)
 
 	switch arch {
 	case ArchI386:
@@ -53,7 +59,7 @@ func writeObject(w io.Writer, r *ResourceSet, arch Arch) error {
 	if err := binary.Write(w, binary.LittleEndian, section); err != nil {
 		return err
 	}
-	addr, err := r.write(w)
+	addr, err := r.writeWithState(w, s)
 	if err != nil {
 		return err
 	}
@@ -95,13 +101,12 @@ func writeRelocTable(w io.Writer, symbolIndex int, arch Arch, addr []int) error 
 		return errors.New(errUnknownArch)
 	}
 
+	var b [sizeOfReloc]byte
+	binary.LittleEndian.PutUint32(b[4:8], uint32(symbolIndex))
+	binary.LittleEndian.PutUint16(b[8:10], t)
 	for _, a := range addr {
-		err := binary.Write(w, binary.LittleEndian, &pe.Reloc{
-			VirtualAddress:   uint32(a),
-			SymbolTableIndex: uint32(symbolIndex),
-			Type:             t,
-		})
-		if err != nil {
+		binary.LittleEndian.PutUint32(b[:4], uint32(a))
+		if _, err := w.Write(b[:]); err != nil {
 			return err
 		}
 	}

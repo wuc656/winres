@@ -146,6 +146,10 @@ func (rs *ResourceSet) SetCursor(resID Identifier, cursor *Cursor) error {
 
 // SetCursorTranslation adds the cursor to a specific language in the resource set.
 func (rs *ResourceSet) SetCursorTranslation(resID Identifier, langID uint16, cursor *Cursor) error {
+	if int(rs.lastCursorID)+len(cursor.images) > 0xFFFF {
+		return errors.New(errZeroID)
+	}
+
 	b := bytes.NewBuffer(make([]byte, 0, sizeOfCursorDirHeader+len(cursor.images)*sizeOfCursorFileDirEntry))
 	binary.Write(b, binary.LittleEndian, cursorDirHeader{
 		Type:  2,
@@ -197,6 +201,9 @@ func (rs *ResourceSet) GetCursorTranslation(resID Identifier, langID uint16) (*C
 		img := rs.Get(RT_CURSOR, ID(entry.Id), rs.firstLang(RT_CURSOR, ID(entry.Id)))
 		if img == nil {
 			return nil, errors.New(errCursorMissing)
+		}
+		if len(img) < 4 {
+			return nil, errors.New(errInvalidGroup)
 		}
 		g.images = append(g.images, cursorImage{
 			info:  entry.cursorInfo,
@@ -316,9 +323,10 @@ func (cursor *Cursor) order() {
 }
 
 func readDIBBitCount(data []byte) (uint16, uint16, error) {
-	// Icons and cursor may contain PNG instead of DIB
-	_, s, _ := image.DecodeConfig(bytes.NewReader(data))
-	if s == "png" {
+	if len(data) < 8 {
+		return 0, 0, io.ErrUnexpectedEOF
+	}
+	if bytes.HasPrefix(data, []byte("\x89PNG\r\n\x1a\n")) {
 		return 1, 32, nil
 	}
 

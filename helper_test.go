@@ -54,6 +54,7 @@ func loadPNGFileAsIcon(t *testing.T, name string, sizes []int) *Icon {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	img, err := png.Decode(f)
 	if err != nil {
 		t.Fatal(err)
@@ -70,6 +71,7 @@ func loadPNGFileAsCursor(t *testing.T, name string, spotX, spotY uint16) *Cursor
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	img, err := png.Decode(f)
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +88,7 @@ func loadICOFile(t *testing.T, name string) *Icon {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	icon, err := LoadICO(f)
 	if err != nil {
 		t.Fatal(err)
@@ -98,6 +101,7 @@ func loadCURFile(t *testing.T, name string) *Cursor {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 	cursor, err := LoadCUR(f)
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +114,7 @@ func loadImage(t *testing.T, name string) image.Image {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer f.Close()
 
 	img, _, err := image.Decode(f)
 	if err != nil {

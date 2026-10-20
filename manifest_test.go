@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"text/template"
 )
 
 func Test_makeManifest(t *testing.T) {
@@ -304,13 +305,13 @@ Description</description>
 }
 
 func TestMakeManifest_Bug(t *testing.T) {
-	bak := manifestTemplate
+	bak := manifestTmpl
 	defer func() {
 		recover()
-		manifestTemplate = bak
+		manifestTmpl = bak
 	}()
 
-	manifestTemplate = "{{.bobby}}"
+	manifestTmpl = template.Must(template.New("manifest").Parse("{{.bobby}}"))
 	makeManifest(AppManifest{})
 
 	t.Error("should have panicked")

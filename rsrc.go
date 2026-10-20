@@ -30,7 +30,10 @@ type state struct {
 // It returns a slice of addresses for the relocation table.
 // https://docs.microsoft.com/en-us/previous-versions/ms809762(v=msdn.10)#pe-file-resources
 func (rs *ResourceSet) write(w io.Writer) ([]int, error) {
-	s := rs.prepare()
+	return rs.writeWithState(w, rs.prepare())
+}
+
+func (rs *ResourceSet) writeWithState(w io.Writer, s *state) ([]int, error) {
 	if err := rs.writeTypeDir(w, s); err != nil {
 		return nil, err
 	}
@@ -204,6 +207,10 @@ func (rs *ResourceSet) writeData(w io.Writer, s *state) error {
 // fullSize returns the full size of the rsrc section's content: the directory, the names, and the actual data.
 func (rs *ResourceSet) fullSize() int {
 	s := rs.prepare()
+	return rs.fullSizeWithState(s)
+}
+
+func (rs *ResourceSet) fullSizeWithState(s *state) int {
 	sz := rs.dirSize() + len(s.namesData)*2
 	for _, te := range rs.types {
 		for _, re := range te.resources {
@@ -384,10 +391,11 @@ type resourceDirectoryTable struct {
 const sizeOfDirTable = 16
 
 func writeDirectoryTable(w io.Writer, numNameEntries int, numIDEntries int) error {
-	return binary.Write(w, binary.LittleEndian, resourceDirectoryTable{
-		NumberOfNameEntries: uint16(numNameEntries),
-		NumberOfIDEntries:   uint16(numIDEntries),
-	})
+	var b [sizeOfDirTable]byte
+	binary.LittleEndian.PutUint16(b[12:], uint16(numNameEntries))
+	binary.LittleEndian.PutUint16(b[14:], uint16(numIDEntries))
+	_, err := w.Write(b[:])
+	return err
 }
 
 type resourceDirectoryIDEntry struct {
@@ -401,17 +409,19 @@ const subdirectoryOffset = 0x80000000
 const nameOffset = 0x80000000
 
 func writeDirectoryEntry(w io.Writer, id int, offset int, isName bool, isSubDir bool) error {
-	e := resourceDirectoryIDEntry{
-		ID:     uint32(id),
-		Offset: uint32(offset),
-	}
+	eID := uint32(id)
+	eOffset := uint32(offset)
 	if isSubDir {
-		e.Offset |= subdirectoryOffset
+		eOffset |= subdirectoryOffset
 	}
 	if isName {
-		e.ID |= nameOffset
+		eID |= nameOffset
 	}
-	return binary.Write(w, binary.LittleEndian, &e)
+	var b [sizeOfDirEntry]byte
+	binary.LittleEndian.PutUint32(b[:4], eID)
+	binary.LittleEndian.PutUint32(b[4:], eOffset)
+	_, err := w.Write(b[:])
+	return err
 }
 
 type resourceDataEntry struct {
@@ -424,11 +434,11 @@ type resourceDataEntry struct {
 const sizeOfDataEntry = 16
 
 func writeDataEntry(w io.Writer, offset int, dataSize int) error {
-	return binary.Write(w, binary.LittleEndian, resourceDataEntry{
-		DataRVA:  uint32(offset),
-		Size:     uint32(dataSize),
-		Codepage: uint32(0), // String tables being encoded in utf-16, this field is useless. Visual studio sets it to zero.
-	})
+	var b [sizeOfDataEntry]byte
+	binary.LittleEndian.PutUint32(b[:4], uint32(offset))
+	binary.LittleEndian.PutUint32(b[4:8], uint32(dataSize))
+	_, err := w.Write(b[:])
+	return err
 }
 
 // Reading functions:
@@ -456,7 +466,6 @@ func (rs *ResourceSet) read(section []byte, baseAddress uint32, typeID Identifie
 }
 
 type dirEntry struct {
-	path   string
 	ident  Identifier
 	offset int64
 	leaf   bool
