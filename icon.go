@@ -348,7 +348,17 @@ func imageInSquareNRGBA(img image.Image, center bool) image.Image {
 	}
 
 	square := image.NewNRGBA(image.Rectangle{Max: image.Point{X: length, Y: length}})
-	draw.Draw(square, img.Bounds().Add(offset), img, img.Bounds().Min, draw.Src)
+	if src, ok := img.(*image.NRGBA); ok {
+		dstBounds := src.Bounds().Add(offset)
+		rowBytes := src.Bounds().Dx() * 4
+		for y := 0; y < src.Bounds().Dy(); y++ {
+			srcRow := src.PixOffset(src.Bounds().Min.X, src.Bounds().Min.Y+y)
+			dstRow := square.PixOffset(dstBounds.Min.X, dstBounds.Min.Y+y)
+			copy(square.Pix[dstRow:dstRow+rowBytes], src.Pix[srcRow:srcRow+rowBytes])
+		}
+	} else {
+		draw.Draw(square, img.Bounds().Add(offset), img, img.Bounds().Min, draw.Src)
+	}
 
 	return square
 }

@@ -21,7 +21,7 @@ type state struct {
 	offset      int          // offset to write in the next directory entry
 	relocAddr   []int        // addresses to add to the relocation table (addresses of the data entries)
 	nameOffset  map[Name]int // offset of every name in the names string table
-	namesData   []uint16     // final data for the names string table
+	namesData   []byte       // final data for the names string table
 	orderedKeys []Identifier // ordered keys for ResourceSet.types
 	namesCount  int          // number of keys of type Name in ResourceSet.types
 }
@@ -44,11 +44,11 @@ func (rs *ResourceSet) writeWithState(w io.Writer, s *state) ([]int, error) {
 		return nil, err
 	}
 	// names will be inserted between the last directory level (data index) and actual data
-	s.offset += len(s.namesData) * 2
+	s.offset += len(s.namesData)
 	if err := rs.writeDataIndex(w, s); err != nil {
 		return nil, err
 	}
-	if err := binary.Write(w, binary.LittleEndian, s.namesData); err != nil {
+	if _, err := w.Write(s.namesData); err != nil {
 		return nil, err
 	}
 	if err := rs.writeData(w, s); err != nil {
@@ -117,14 +117,20 @@ func (rs *ResourceSet) prepare() *state {
 	for _, n := range names {
 		s.nameOffset[Name(n)] = offset
 		u := utf16.Encode([]rune(n))
-		s.namesData = append(s.namesData, uint16(len(u)))
-		s.namesData = append(s.namesData, u...)
+		var lenBuf [2]byte
+		binary.LittleEndian.PutUint16(lenBuf[:], uint16(len(u)))
+		s.namesData = append(s.namesData, lenBuf[:]...)
+		for _, r := range u {
+			var rBuf [2]byte
+			binary.LittleEndian.PutUint16(rBuf[:], r)
+			s.namesData = append(s.namesData, rBuf[:]...)
+		}
 		offset += (len(u) + 1) * 2
 	}
 
 	// Names must be padded to align the resource data.
-	sz := len(s.namesData) * 2
-	s.namesData = append(s.namesData, make([]uint16, (alignData(sz)-sz)/2)...)
+	sz := len(s.namesData)
+	s.namesData = append(s.namesData, make([]byte, alignData(sz)-sz)...)
 	return s
 }
 
@@ -211,7 +217,7 @@ func (rs *ResourceSet) fullSize() int {
 }
 
 func (rs *ResourceSet) fullSizeWithState(s *state) int {
-	sz := rs.dirSize() + len(s.namesData)*2
+	sz := rs.dirSize() + len(s.namesData)
 	for _, te := range rs.types {
 		for _, re := range te.resources {
 			for _, de := range re.data {
@@ -516,7 +522,12 @@ func (de dirEntry) readDirTable(section *bytes.Reader) ([]dirEntry, error) {
 		return nil, err
 	}
 
-	dir := make([]resourceDirectoryIDEntry, table.NumberOfNameEntries+table.NumberOfIDEntries)
+	numEntries := int(table.NumberOfNameEntries) + int(table.NumberOfIDEntries)
+	if int64(numEntries)*sizeOfDirEntry > int64(section.Len()) {
+		return nil, io.ErrUnexpectedEOF
+	}
+
+	dir := make([]resourceDirectoryIDEntry, numEntries)
 	err = binaryRead(section, &dir)
 	if err != nil {
 		return nil, err
@@ -532,6 +543,9 @@ func (de dirEntry) readDirTable(section *bytes.Reader) ([]dirEntry, error) {
 		}
 		entries[i].offset = int64(dir[i].Offset &^ subdirectoryOffset)
 		if dir[i].ID&nameOffset == 0 {
+			if dir[i].ID > 0xFFFF {
+				return nil, errors.New(errInvalidResDir)
+			}
 			entries[i].ident = ID(dir[i].ID)
 		} else {
 			entries[i].ident, err = readName(section, dir[i].ID&^nameOffset)

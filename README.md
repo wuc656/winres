@@ -53,7 +53,6 @@ Here is a quick example:
 package main
 
 import (
-	"io/ioutil"
 	"os"
 
 	"github.com/wuc656/winres"
@@ -64,9 +63,14 @@ func main() {
 	rs := winres.ResourceSet{}
 
 	// Add resources
-	// This is a cursor named ID(1)
-	cursorData, _ := ioutil.ReadFile("cursor.cur")
-	rs.Set(winres.RT_CURSOR, winres.ID(1), 0, cursorData)
+	// Load a cursor file and embed it as ID(1)
+	f, err := os.Open("cursor.cur")
+	if err == nil {
+		defer f.Close()
+		if cur, err := winres.LoadCUR(f); err == nil {
+			rs.SetCursor(winres.ID(1), cur)
+		}
+	}
 
 	// This is a custom data type, translated in english (0x409) and french (0x40C)
 	// You can find more language IDs by searching for LCID
@@ -74,7 +78,7 @@ func main() {
 	rs.Set(winres.Name("CUSTOM"), winres.Name("COOLDATA"), 0x40C, []byte("Bonjour Monde"))
 
 	// Compile to a COFF object file
-	// It is recommended to use the target suffix "_window_amd64"
+	// It is recommended to use the target suffix "_windows_amd64"
 	// so that `go build` knows when not to include it.
 	out, _ := os.Create("rsrc_windows_amd64.syso")
 	rs.WriteObject(out, winres.ArchAMD64)

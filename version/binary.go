@@ -11,6 +11,7 @@ import (
 	"io"
 	"maps"
 	"slices"
+	"strconv"
 	"unicode/utf16"
 )
 
@@ -263,11 +264,15 @@ func (vi *Info) readNode(parent any, data []byte) (int, error) {
 		}
 
 	case parent == stringFileInfo:
-		var langID, codePage uint16
-		_, err := fmt.Sscanf(key, "%04x%04x", &langID, &codePage)
-		if err != nil {
+		if len(key) != 8 {
 			return 0, errors.New(errInvalidLangID)
 		}
+		lang64, err1 := strconv.ParseUint(key[:4], 16, 16)
+		cp64, err2 := strconv.ParseUint(key[4:], 16, 16)
+		if err1 != nil || err2 != nil {
+			return 0, errors.New(errInvalidLangID)
+		}
+		langID, codePage := uint16(lang64), uint16(cp64)
 		if codePage != codePageUTF16LE {
 			return 0, errors.New(errUnhandledCodePage)
 		}
